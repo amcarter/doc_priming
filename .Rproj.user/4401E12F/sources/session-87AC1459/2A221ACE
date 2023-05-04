@@ -1,0 +1,27 @@
+{
+    "id": "2A221ACE",
+    "path": "C:/Users/alice.carter/git/DOC_priming/Calculate_excess_13CO2.R",
+    "project_path": "Calculate_excess_13CO2.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1677860959593.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "137,50",
+        "scrollLine": "122",
+        "marks": "<:0,0\n>:0,0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1683156139,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1683156139641,
+    "read_only": false,
+    "read_only_alternatives": []
+}
