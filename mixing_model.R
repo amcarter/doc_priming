@@ -1,5 +1,30 @@
 library(tidyverse)
 
+del_lw = -15
+del_glucose = -12
+AF_lw = deltoAF(del_lw)
+AF_glucose = deltoAF(del_glucose)
+
+C_lw = 1.2
+C_glucose = 1
+
+deltoAF<- function (del) {
+    Rst<-0.0112372
+    R<-(del/1000+1)*Rst
+    AF<-R/(1+R)
+    AF
+
+}
+
+
+AFtodel <- function (AF) {
+    Rst<-0.0112372
+    R<- AF/(1-AF)
+    del<- (R/Rst-1)*1000
+
+    del
+}
+
 dat <- read_csv('processed_CO2/experiment1_processed.csv')
 
 dd <- dat %>% #glimpse()
@@ -10,7 +35,14 @@ dd <- dat %>% #glimpse()
 t0 <- filter(dd, time_interval == 'T0') %>%
     summarize(across(.cols = c(sample_datetime, DIC_molL, DIC_13C_umolL, delCO2),
                      .fns = mean))
-t0$DIC_12C_umolL <- t0$DIC_molL*10^6 - t0$DIC_13C_umolL
+
+end <- dd %>% filter( time_interval %in% c('T6', 'T5')) %>%
+    select(-DIC_mgL, -AF, -delCO2, -time_interval)%>%
+    mutate(delta_t = as.numeric(sample_datetime - t0$sample_datetime),
+           delta_DIC_umolL = 10^6 * (DIC_molL - t0$DIC_molL)/delta_t,
+           delta_DIC_13C_umolL = (DIC_13C_umolL - t0$DIC_13C_umolL)/delta_t,
+           delta_DIC_12C_umolL = (delta_DIC_umolL - delta_DIC_13C_umolL)/delta_t)
+
 
 ggplot(dd, aes(sample_datetime, DIC_molL*10^6, col = treatment))+
     geom_point()
@@ -20,6 +52,11 @@ ggplot(dd, aes(sample_datetime, delCO2, col = treatment))+
     geom_point()
 
 
+lakewater_breakdown <- end %>%
+    filter(treatment == 'LW') %>%
+    mutate(lw_bd_umolCL = delta_DIC_12C_umolL/(1-AF_lw)) %>%
+    select(lw_bd_umolCL)
+lakewater_breakdown = mean(lakewater_breakdown$lw_bd_umolCL)
 
 
 dd %>% filter(time_interval %in% c('T6', 'T5')) %>%
