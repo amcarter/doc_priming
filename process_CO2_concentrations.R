@@ -5,7 +5,7 @@
 # setup ####
 library(tidyverse)
 library(lubridate)
-setwd("/Users/niko/Dropbox/leachate_linder")
+# setwd("/Users/niko/Dropbox/leachate_linder")
 
 # data ####
 # read in sample metadata file for the entire duration of experiment
