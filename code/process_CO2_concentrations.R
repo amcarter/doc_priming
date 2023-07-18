@@ -1,6 +1,8 @@
 # Process CO2 data to:
-# 1. Correct concentrations based on standards
+# 1. Correct concentrations based on standards if desired
 # 2. Calculate the concentration in H2O before equilibration
+# Run this code after you have run the picarro_data_harvest.R
+# code on all picarro runs in a batch
 
 # setup ####
 library(tidyverse)
@@ -9,14 +11,24 @@ library(lubridate)
 
 # data ####
 # read in sample metadata file for the entire duration of experiment
-mdat <- read_csv("Sampletimes2.csv")
+# This will include columns the following columns at a minimum:
+# Syringe: The syringe number, matching what was entered when you ran the Picarro
+# Treatment: What teatment is each sample from?
+# rundate: the date that samples were run on the picarro (in picarro dates!)
+# sample_date: the date that samples were taken
+# sample_time: the actual times that samples were taken
+# equilpressure: the air pressure in the lab when the samples were equilibrated (in units of atm)
+dat_folder <- "data/Kirby_flatheadlake/" # the folder that contains subfolders of processed Picarro run data
+mdat <- read_csv(paste0(dat_folder, "Sampletimes2.csv"))
+expt_name <- 'flathead_lake_expt_07_13' # used for generating figures and saving output.
+
 # functions ####
 ## CALCULATE CO2 IN H20 (in the post-processing files now)
 #I (Bob) think this is correct
 CO2calc2<-function(x) {
     x$kH_CO2<-29* exp( 2400 * ((1/(x$equiltemp+273.15)) - 1/(298.15)) ) #temp correction for Henry's law
-    x$CO2_mol_water<- x$CO2_vol_air  / x$kH_CO2
-    x$CO2_mol_air<- x$CO2_vol_air/ ((x$equiltemp+273.15)*0.08026/x$pressure)
+    x$CO2_mol_water<- x$CO2_conc_air  / x$kH_CO2
+    x$CO2_mol_air<- x$CO2_conc_air/ ((x$equiltemp+273.15)*0.08026/x$equilpressure)
 
     x$CO2_conc_umolL<-(x$CO2_mol_water*x$volwater + x$CO2_mol_air*x$volair)/x$volwater # µmol/L or mmol/m3
     return(x)
@@ -70,57 +82,55 @@ AFtodel <- function (AF) {
 # std_d13C = -2.25 # del13C
 
 dat <- tibble() # create empty data frame to compile samples
-filelist <- list.files('processed_CO2/expone_7_12_22')
-t = 0
+filelist <- list.files(dat_folder, pattern = 'processed\\.csv',
+                       recursive = TRUE)
+
 for(f in filelist){ # compile all processed data from experiment into one table
 
-    dd <- read_csv(paste0("processed_CO2/expone_7_12_22/", f)) %>%
-        mutate(rundate = as.Date(DATETIME),
-               pressure = 0.9,
-               sample_interval = paste0("T", t))
-    t = t + 1
+    dd <- read_csv(paste0(dat_folder, f)) %>%
+        mutate(rundate = as.Date(DATETIME))
 
     # dd <- standard_correct(std_CO2, std_d13C, dd)
 
-
     dd <- dd %>%
-      mutate(CO2_vol_air = CO2)  %>%
-        dplyr::rename(SampleID = ...1,
-               equiltemp = eq_temp,
-               volair = air_mL,
-               volwater = H2O_mL)
+      mutate(CO2_conc_air = CO2_ppm)  %>%
+        dplyr::rename(equiltemp = eq_temp,
+                      volair = air_mL,
+                      volwater = H2O_mL)
 
     ## Run function on datafile
     sum_file <- CO2calc2(dd)
 
-    ggplot(sum_file, aes(SampleID, CO2_conc_umolL))+
+    ggplot(sum_file, aes(samplenum, CO2_conc_umolL))+
         geom_point(size=3)+
         theme(axis.text.x=element_text(angle=45, hjust = 1))
 
     dat <- bind_rows(dat, sum_file)
 }
 
-## summarize data so far
-# calculate atomic fractions:
-dat <- dat %>%
-    dplyr::rename(time_interval = sample_interval,
-           syringe_number = Syringe)
-
-dat <-left_join(mdat,dat, by = c('rundate', 'time_interval', 'syringe_number'))
-
-ggplot(dat, aes(x = sample_datetime, y = CO2_conc_umolL, col = treatment))+
-    geom_point()
-
-ggplot(dat, aes(x = sample_datetime, y = delCO2, col = treatment))+
-  geom_point()
+# add metadata to the compiled list of data and clean up:
+dat <- full_join(mdat, dat, by = c('rundate', 'Syringe')) %>%
+    mutate(sample_datetime = lubridate::ymd_hms(paste(sample_date, sample_time, sep = " ")),
+           Treatment = as.factor(Treatment)) %>%
+    select(-ResetTime, -ENDTIME, -sample_date, -sample_time) %>%
+    rename(run_datetime = DATETIME)
 
 dat <- dat %>%
     mutate(AF = deltoAF(delCO2),
            CO2_13C_umolL = AF * CO2_conc_umolL)
 
-ggplot(dat, aes(x = sample_datetime, y = CO2_13C_umolL, col = treatment))+
+## plot the data
+
+ggplot(dat, aes(x = sample_datetime, y = CO2_conc_umolL, col = Treatment))+
     geom_point()
 
+ggplot(dat, aes(x = sample_datetime, y = delCO2, col = Treatment))+
+  geom_point()
 
-write_csv(dat,"processed_CO2/experiment1_summary2.csv")
+# example code to save a figure:
+png(filename = paste0('figures/', expt_name, '_13CO2.png')) # naming it based on expt name will prevent us from overwriting it
+ggplot(dat, aes(x = sample_datetime, y = CO2_13C_umolL, col = Treatment))+
+    geom_point()
+dev.off()
 
+write_csv(dat, paste0(dat_folder, expt_name, '.csv'))
