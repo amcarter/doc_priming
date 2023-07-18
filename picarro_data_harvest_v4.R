@@ -8,6 +8,8 @@ library(cowplot)
 library(reshape2)
 library(dygraphs)
 
+setwd("C:/Users/julia/Dropbox/Kirby_priming/Data_Processing/Data_Harvest_By_Day/Kirby_trial_run_2023-20230711T182315Z-001/Kirby_trial_run_2023")
+
 ###########
 ## IMPORT FATA
 ###########
@@ -19,14 +21,14 @@ library(dygraphs)
 ## collection time, pH, volume of sample, volume of equlibration gas (typically 70mL),
 ## temp of equilibration
 
-meta <- read.table("data/lexperiment2_7_12_22/lexperiment2_7_12_2022.txt",
+meta <- read.table("trial_07_03_2023/trial_run_07_03_2023.txt",
                    sep=",",header=T)
 meta$DATETIME <- lubridate::ymd_hms(as.character(meta$ResetTime))
 meta$samplenum<-seq(1:length(meta$ResetTime))
 
 
 ## Import the raw data
-filelist <-list.files("data/lexperiment2_7_12_22", pattern="dat", full.names = TRUE)  ##makes a vector of that day's files
+filelist <-list.files("trial_07_03_2023", pattern="dat", full.names = TRUE)  ##makes a vector of that day's files
 rawdata <- list()  #empty list
 #below loops over all the files making a list containg a tibble for each file and stuffing it into a list
 for(f in filelist) {
