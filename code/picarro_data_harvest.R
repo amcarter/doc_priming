@@ -20,10 +20,11 @@ library(dygraphs)
 # This should be the only place in the script that needs to be changed when used.
 # Data folder where all of the raw data is located including run files from the
 # Picarro, the txt files you generated while running it, and any associated metadata:
-dat_folder <- "data/Kirby_flatheadlake/flatheadlake_07_13_2023/"
-run_file <- "fl_meta_07_13_2023.csv"
+dat_folder <- "data/Kirby_flatheadlake/flatheadlake_07_18_2023/"
+run_file <- "flathead_07_18_2023.txt"
 # meta_file <- "" # optional additional Metadata
-output_file <- "fl_CO2_processed.csv" # provide a name for your output file
+output_file <- "fl_18_CO2_processed.csv" # provide a name for your output file
+batch <- 3
 
 ## Import meta data for each day:  In this case metadata consists of a sample
 ## identifier and time stamp, where time stamp is when the sample syringe hits
@@ -77,7 +78,7 @@ for(i in 1:nrow(meta)){
 }
 sample_times <- data.frame(DATETIME = lubridate::ymd_hms(sample_times)) %>%
     left_join(rawdata[,c(1,4)]) %>%
-    rename(sample_window = `12CO2_dry`)
+    dplyr::rename(sample_window = `12CO2_dry`)
 
 
 dygraphs::dygraph(full_join(rawdata[,c(1,4,6)], sample_times)) %>%
@@ -142,6 +143,7 @@ subdatsum <- subdat %>%
 
 sum_file <- full_join(meta, subdatsum, by = 'samplenum')
 
+sum_file$batch <- batch
 # name your file something informative and save it in the same folder.
 write_csv(sum_file, paste0(dat_folder, output_file))
 

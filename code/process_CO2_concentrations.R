@@ -19,7 +19,8 @@ library(lubridate)
 # sample_time: the actual times that samples were taken
 # equilpressure: the air pressure in the lab when the samples were equilibrated (in units of atm)
 dat_folder <- "data/Kirby_flatheadlake/" # the folder that contains subfolders of processed Picarro run data
-mdat <- read_csv(paste0(dat_folder, "Sampletimes2.csv"))
+mdat <- read_csv(paste0(dat_folder, "fl_meta.csv")) %>%
+    mutate(sample_date = as.Date(sample_date, format = '%m/%d/%Y'))
 expt_name <- 'flathead_lake_expt_07_13' # used for generating figures and saving output.
 
 # functions ####
@@ -98,34 +99,48 @@ for(f in filelist){ # compile all processed data from experiment into one table
                       volair = air_mL,
                       volwater = H2O_mL)
 
-    ## Run function on datafile
-    sum_file <- CO2calc2(dd)
 
-    ggplot(sum_file, aes(samplenum, CO2_conc_umolL))+
-        geom_point(size=3)+
-        theme(axis.text.x=element_text(angle=45, hjust = 1))
-
-    dat <- bind_rows(dat, sum_file)
+    dat <- bind_rows(dat, dd)
 }
 
 # add metadata to the compiled list of data and clean up:
-dat <- full_join(mdat, dat, by = c('rundate', 'Syringe')) %>%
+dat <- full_join(mdat, dat, by = c('batch', 'Syringe')) %>%
     mutate(sample_datetime = lubridate::ymd_hms(paste(sample_date, sample_time, sep = " ")),
            Treatment = as.factor(Treatment)) %>%
     select(-ResetTime, -ENDTIME, -sample_date, -sample_time) %>%
     rename(run_datetime = DATETIME)
 
-dat <- dat %>%
+## Run function on datafile
+sum_file <- CO2calc2(dat)
+
+ggplot(sum_file, aes(samplenum, CO2_conc_umolL))+
+    geom_point(size=3)+
+    theme(axis.text.x=element_text(angle=45, hjust = 1))
+
+dat <- sum_file %>%
     mutate(AF = deltoAF(delCO2),
            CO2_13C_umolL = AF * CO2_conc_umolL)
 
 ## plot the data
 
 ggplot(dat, aes(x = sample_datetime, y = CO2_conc_umolL, col = Treatment))+
-    geom_point()
+    geom_point() + geom_line()
 
-ggplot(dat, aes(x = sample_datetime, y = delCO2, col = Treatment))+
-  geom_point()
+ggplot(dat, aes(x = sample_datetime, y = CO2_13C_umolL, col = Treatment))+
+  geom_point()+
+    geom_line()
+
+dat %>% filter(batch == 3) %>%
+    ggplot(aes(x = sample_datetime, y = CO2_conc_umolL, col = Treatment))+
+    geom_
+
+dat %>%
+    group_by(batch, Treatment) %>%
+    summarize(across(.cols = c('CO2_conc_umolL', 'delCO2'),
+                     .fns = list(mean, sd)))
+
+ggplot( aes(x = batch, y = delCO2, col = Treatment))+
+  geom_boxplot()
 
 # example code to save a figure:
 png(filename = paste0('figures/', expt_name, '_13CO2.png')) # naming it based on expt name will prevent us from overwriting it
@@ -134,3 +149,4 @@ ggplot(dat, aes(x = sample_datetime, y = CO2_13C_umolL, col = Treatment))+
 dev.off()
 
 write_csv(dat, paste0(dat_folder, expt_name, '.csv'))
+
