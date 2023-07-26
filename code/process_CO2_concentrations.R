@@ -113,7 +113,7 @@ dat <- full_join(mdat, dat, by = c('batch', 'Syringe')) %>%
 ## Run function on datafile
 sum_file <- CO2calc2(dat)
 
-ggplot(sum_file, aes(samplenum, CO2_conc_umolL))+
+ggplot(sum_file, aes(samplenum, CO2_conc_umolL, col = Treatment))+
     geom_point(size=3)+
     theme(axis.text.x=element_text(angle=45, hjust = 1))
 
