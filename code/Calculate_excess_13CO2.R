@@ -49,28 +49,28 @@ trts <- data.frame(Treatment = 1:8,
                    leachate = c(0,0,0,0,1,1,1,1))
 
 # add actual data for this part once we have DOC from Adam
-c_source <- data.frame(
-    C = c('water', 'glucose', 'leachate'),
-    conc_mgL = c(1, 1, 0.05),
-    delC = c(-20, -12, NA_real_),
-    AF = c(deltoAF(-20), deltoAF(-12), 1)
-)
+c_source <- read_csv('data/DOC_stock_concentrations.csv')
+
+# There is no clear pattern in the alkalinity data. Take an average:
+alk <- alk %>% filter(final_pH > 4.3) %>%
+    summarize(alk_meqL = mean(alk_meqL))
 
 dat <- left_join(dat, trts, by = 'Treatment') %>%
-    mutate(date = as.Date(sample_datetime)) %>%
-    left_join(alk, by = c('date', 'trt', 'leachate'))
+    mutate(date = as.Date(sample_datetime))
+    # left_join(alk, by = c('date', 'trt', 'leachate'))
 
 # calculate DIC in the water ####
 ###testing DIC from pCO2-alk
 ###partial pressures of CO2 pCO2 in uatm
 # alk <- 1.588 *10 ^(-3) # mol/L
 # pCO2 <- 30 * 10^(-6) # mol/L
-# temp <- 273+21
+temp <- 273+21
 K1 <- exp(290.9097-14554.21/(temp)-45.0575*log(temp))
 K2 <- exp(207.6548-11843.79/(temp)-33.6485*log(temp))
 
 # out <-DICfrom_C_A(K1=K1, K2=K2,C=pCO2,A=alk)
-dat$DIC_molL <- DICfrom_C_A(K1, K2, dat$CO2_conc_umolL * 10^(-6), dat$alk_meqL)
+dat$DIC_molL <- DICfrom_C_A(K1, K2, dat$CO2_conc_umolL * 10^(-6),
+                            alk$alk_meqL* 10^-3)
 # dat$DIC_13molL <- DICfrom_C_A(K1, K2, dat$CO2_13C_umolL * 10^(-6), alk)
 dat$DIC_mgL <- dat$DIC_molL*12.011*1000
 # dat$AF = deltoAF(dat$delCO2)
@@ -79,7 +79,7 @@ dat$DIC_13C_ugL = dat$DIC_13C_umolL * 13
 
 
 dat %>% dplyr::filter(!is.na(Treatment)) %>%
-ggplot(aes(x = sample_datetime, y = DIC_13C_ugL, col = factor(Treatment)))+
+ggplot(aes(x = sample_datetime, y = DIC_13C_ugL))+
   geom_point() + geom_line()
 
 # Clean up data ####
@@ -97,33 +97,44 @@ dat_sum <- filter(dat, batch != 2) %>%
     group_by(batch, trt, leachate) %>%
     summarize(across(any_of(c('sample_datetime', 'delCO2', 'DIC_mgL',
                               'DIC_13C_ugL', 'alk_meqL')),
-                     .fns = ~mean(., na.rm = T)))
+                     .fns = list(mean = ~mean(., na.rm = T),
+                                 sd = ~sd(., na.rm = T)))) %>%
+    rename(sample_datetime = sample_datetime_mean) %>%
+    select(-sample_datetime_sd)
 
-p12 <- ggplot(dat_sum, aes(sample_datetime, DIC_mgL, col = trt, lty = factor(leachate)))+
-    geom_point() + geom_line(size = 1) + theme_bw()
-p13 <- ggplot(dat_sum, aes(sample_datetime, DIC_13C_ugL, col = trt, lty = factor(leachate)))+
-    geom_point() + geom_line(size = 1) + theme_bw()
+p12 <- ggplot(dat_sum, aes(sample_datetime, DIC_mgL_mean, col = trt, lty = factor(leachate)))+
+    geom_point() + geom_line(size = 1) +
+    geom_errorbar(aes(ymin = DIC_mgL_mean - DIC_mgL_sd,
+                      ymax = DIC_mgL_mean + DIC_mgL_sd), lty = 1)+
+    theme_bw()
+p13 <- ggplot(dat_sum, aes(sample_datetime, DIC_13C_ugL_mean, col = trt, lty = factor(leachate)))+
+    geom_point() + geom_line(size = 1) +
+    geom_errorbar(aes(ymin = DIC_13C_ugL_mean - DIC_13C_ugL_sd,
+                      ymax = DIC_13C_ugL_mean + DIC_13C_ugL_sd), lty = 1)+
+    theme_bw()
 
 
 ggpubr::ggarrange(p12, p13, common.legend = T)
 
-ggplot(dat_sum, aes(sample_datetime, alk_meqL, col = trt, lty = factor(leachate)))+
-    geom_point() + geom_line(size = 1) + theme_bw()
-dd <- dat_sum %>% select(-delCO2, -alk_meqL) %>%
+dd <- dat_sum %>% select(-starts_with(c('delCO2', 'alk_meqL'))) %>%
     mutate(batch = case_when(batch == 1 ~ 'T0',
                              batch == 3 ~ 'T'))%>%
+    rename(DIC_mgL = DIC_mgL_mean, DIC_13C_ugL = DIC_13C_ugL_mean) %>%
     pivot_wider(names_from = 'batch',
-                values_from = c('sample_datetime', 'DIC_mgL', 'DIC_13C_ugL')) %>%
+                values_from = c('sample_datetime', 'DIC_mgL', 'DIC_13C_ugL',
+                                'DIC_mgL_sd', 'DIC_13C_ugL_sd')) %>%
     mutate(inc_time = sample_datetime_T - sample_datetime_T0,
            Delta_T = as.numeric(inc_time),
            Delta_DIC_ugLd = (DIC_mgL_T - DIC_mgL_T0)*1000/Delta_T,
-           Delta_DIC_13_ugLd = (DIC_13C_ugL_T - DIC_13C_ugL_T0)/Delta_T) %>%
+           Delta_DIC_ugLd_sd = (DIC_mgL_sd_T + DIC_mgL_sd_T0)*1000/Delta_T,
+           Delta_DIC_13_ugLd = (DIC_13C_ugL_T - DIC_13C_ugL_T0)/Delta_T,
+           Delta_DIC_13_ugLd_sd = (DIC_13C_ugL_sd_T + DIC_13C_ugL_sd_T0)/Delta_T) %>%
     select(-ends_with(c('_T', '_T0')))
 
 mutate(dd, AF = Delta_DIC_13_ugLd/(Delta_DIC_13_ugLd + Delta_DIC_ugLd),
        del = AFtodel(AF))
 
-dd %>% select( -inc_time) %>%
+dd %>% select( -inc_time, -ends_with('sd')) %>%
     pivot_wider(names_from = 'leachate',
                 values_from = c('Delta_DIC_ugLd', 'Delta_DIC_13_ugLd')) %>%
     mutate(excess_13C_DIC = Delta_DIC_13_ugLd_1 - Delta_DIC_13_ugLd_0)
