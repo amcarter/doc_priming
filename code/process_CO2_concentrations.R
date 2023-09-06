@@ -5,6 +5,7 @@
 # code on all picarro runs in a batch
 
 # setup ####
+
 library(tidyverse)
 library(lubridate)
 # setwd("/Users/niko/Dropbox/leachate_linder")
@@ -18,10 +19,10 @@ library(lubridate)
 # sample_date: the date that samples were taken
 # sample_time: the actual times that samples were taken
 # equilpressure: the air pressure in the lab when the samples were equilibrated (in units of atm)
-dat_folder <- "data/Kirby_flatheadlake/" # the folder that contains subfolders of processed Picarro run data
-mdat <- read_csv(paste0(dat_folder, "fl_meta.csv")) %>%
+dat_folder <- "data/Kirby_NyackW/" # the folder that contains subfolders of processed Picarro run data
+mdat <- read_csv(paste0(dat_folder, "nw_meta.csv")) %>%
     mutate(sample_date = as.Date(sample_date, format = '%m/%d/%Y'))
-expt_name <- 'flathead_lake_expt_07_13' # used for generating figures and saving output.
+expt_name <- 'nw_expt' # used for generating figures and saving output.
 
 # functions ####
 ## CALCULATE CO2 IN H20 (in the post-processing files now)
@@ -130,23 +131,25 @@ ggplot(dat, aes(x = sample_datetime, y = CO2_13C_umolL, col = Treatment))+
   geom_point()+
     geom_line()
 
-dat %>% filter(batch == 3) %>%
-    ggplot(aes(x = sample_datetime, y = CO2_conc_umolL, col = Treatment))+
-    geom_
+# dat %>% filter(batch == 3) %>%
+#     ggplot(aes(x = sample_datetime, y = CO2_conc_umolL, col = Treatment))+
+#     geom_
+#wasn't working (JDK 8/1)
 
 dat %>%
     group_by(batch, Treatment) %>%
     summarize(across(.cols = c('CO2_conc_umolL', 'delCO2'),
                      .fns = list(mean, sd)))
 
-ggplot( aes(x = batch, y = delCO2, col = Treatment))+
-  geom_boxplot()
+# ggplot( aes(x = batch, y = delCO2, col = Treatment))+
+#   geom_boxplot()
+#wasn't working (JDK 8/1)
 
 # example code to save a figure:
-png(filename = paste0('figures/', expt_name, '_13CO2.png')) # naming it based on expt name will prevent us from overwriting it
-ggplot(dat, aes(x = sample_datetime, y = CO2_13C_umolL, col = Treatment))+
-    geom_point()
-dev.off()
+# png(filename = paste0('figures/', expt_name, '_13CO2.png')) # naming it based on expt name will prevent us from overwriting it
+# ggplot(dat, aes(x = sample_datetime, y = CO2_13C_umolL, col = Treatment))+
+#     geom_point()
+# dev.off()
 
 write_csv(dat, paste0(dat_folder, expt_name, '.csv'))
 
