@@ -89,5 +89,5 @@ filter(dd, date > as.Date('2023-07-11')) %>%
     summarize(across(everything(), mean)) %>%
 
 ggplot( aes(date, DOC_13_mgL, col = trt, lty = factor(leachate))) +
-    geom_point() + geom_line() +
+    geom_point() + geom_line(size = 2) +
     facet_wrap(.~site, scales = 'free') + theme_classic()

@@ -19,10 +19,10 @@ library(lubridate)
 # sample_date: the date that samples were taken
 # sample_time: the actual times that samples were taken
 # equilpressure: the air pressure in the lab when the samples were equilibrated (in units of atm)
-dat_folder <- "data/Kirby_NyackW/" # the folder that contains subfolders of processed Picarro run data
-mdat <- read_csv(paste0(dat_folder, "nw_meta.csv")) %>%
+dat_folder <- "data/Kirby_FL2/" # the folder that contains subfolders of processed Picarro run data
+mdat <- read_csv(paste0(dat_folder, "fl2_meta.csv")) %>%
     mutate(sample_date = as.Date(sample_date, format = '%m/%d/%Y'))
-expt_name <- 'nw_expt' # used for generating figures and saving output.
+expt_name <- 'fl2_expt' # used for generating figures and saving output.
 
 # functions ####
 ## CALCULATE CO2 IN H20 (in the post-processing files now)
@@ -104,8 +104,11 @@ for(f in filelist){ # compile all processed data from experiment into one table
     dat <- bind_rows(dat, dd)
 }
 
+# dat <- filter(dat, Syringe != '70')
+# mdat <- filter(mdat, Syringe != '70')
+
 # add metadata to the compiled list of data and clean up:
-dat <- full_join(mdat, dat, by = c('batch', 'Syringe')) %>%
+dat <- left_join(mdat, dat, by = c('batch', 'Syringe')) %>%
     mutate(sample_datetime = lubridate::ymd_hms(paste(sample_date, sample_time, sep = " ")),
            Treatment = as.factor(Treatment)) %>%
     select(-ResetTime, -ENDTIME, -sample_date, -sample_time) %>%
@@ -114,7 +117,10 @@ dat <- full_join(mdat, dat, by = c('batch', 'Syringe')) %>%
 ## Run function on datafile
 sum_file <- CO2calc2(dat)
 
-ggplot(sum_file, aes(samplenum, CO2_conc_umolL, col = Treatment))+
+sum_file %>% group_by(Treatment, batch) %>%
+    summarize(n = n()) %>% arrange(batch)
+
+ggplot(sum_file, aes(batch, CO2_conc_umolL, col = Treatment))+
     geom_point(size=3)+
     theme(axis.text.x=element_text(angle=45, hjust = 1))
 
