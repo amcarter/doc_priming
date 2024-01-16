@@ -20,10 +20,10 @@ library(dygraphs)
 # This should be the only place in the script that needs to be changed when used.
 # Data folder where all of the raw data is located including run files from the
 # Picarro, the txt files you generated while running it, and any associated metadata:
-dat_folder <- "data/Kirby_FL2/fl2_ybc_10_04_2023/"
-run_file <- "FL_YBC_10_04_2023.txt"
+dat_folder <- "data/Kirby_YBC/fl2_ybc_10_04_2023/"
+run_file <- "YBC_10_04_2023.txt"
 # meta_file <- "" # optional additional Metadata
-output_file <- "fl_ybc_2_CO2_processed.csv" # provide a name for your output file
+output_file <- "ybc_2_CO2_processed.csv" # provide a name for your output file
 batch <- 2
 
 ## Import meta data for each day:  In this case metadata consists of a sample
