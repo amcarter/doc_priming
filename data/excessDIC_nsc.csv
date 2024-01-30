@@ -1,0 +1,5 @@
+site,trt,excess_13C_DIC,excess_13C_sd,carbon,nuts
+nyack_sc,C,0.969266451755061,0.1756731716217041,Glucose,No Nutrients
+nyack_sc,CNP,1.0530699286717078,0.4721379783866655,Glucose,Nutrients
+nyack_sc,NP,0.41916025741046353,0.29804282506315904,No Glucose,No Nutrients
+nyack_sc,W,0.7294783390708273,0.3599247327209505,No Glucose,Nutrients

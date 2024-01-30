@@ -84,10 +84,18 @@ dd <- doc %>% filter(!is.na(trt)) %>%
     mutate(date = as.Date(Collection_date, format = '%m/%d/%Y'))
 write_csv(dd, 'data/DOC_sample_data.csv')
 
+ggplot(data = dd) +
+    geom_point(mapping = aes(x = date, y = DOC_mgL, col = site))
+
 filter(dd, date > as.Date('2023-07-11')) %>%
     group_by(date, trt, leachate, site) %>%
     summarize(across(everything(), mean)) %>%
 
-ggplot( aes(date, DOC_13_mgL, col = trt, lty = factor(leachate))) +
-    geom_point() + geom_line(size = 2) +
-    facet_wrap(.~site, scales = 'free') + theme_classic()
+excess13CDOC <- dd %>% select(-Sample_ID, -leachate, - Collection_date) %>%
+    mutate(carbon = ifelse(grepl("C", trt), "Glucose", "No Glucose")) %>%
+    mutate(nuts = ifelse(grepl("NP", trt), "Nutrients", "No Nutrients"))
+    date <- as.Date(excess13CDOC$date, format = "%Y-%m%-%d")
+excess13CDOC <- mutate(batch = casewhen( date = ("2023-07-13", "2023-07-18") ~ 1),
+                       )
+
+
