@@ -94,6 +94,7 @@ dat %>% dplyr::filter(!is.na(Treatment)) %>%
 #FINAL FIGURES####
 
 # filter to use only the start and end time points
+
 dat_sum <- dat %>%
     group_by(batch, trt, leachate, replicate) %>%
     summarize(across(any_of(c('sample_datetime', 'delCO2', 'DIC_mgL',
@@ -178,8 +179,8 @@ p13 <- ggplot(dat_dif, aes(sample_datetime, DIC_13C_ugL, col = trt, lty = factor
     geom_errorbar(aes(ymin = DIC_13C_ugL - DIC_13C_ugL_sd,
                       ymax = DIC_13C_ugL + DIC_13C_ugL_sd), lty = 1)+
     xlab('Date') +theme_bw()
-png(filename = 'figures/nsc_expt_13CO2.png',
-    width = 8, height = 5, res = 300, units = 'in')
+#png(filename = 'figures/nsc_expt_13CO2.png',
+ #   width = 8, height = 5, res = 300, units = 'in')
 ggpubr::ggarrange(p12, p13, common.legend = T)
 dev.off()
 
@@ -212,8 +213,8 @@ p13 <- ggplot(dat_lch, aes(sample_datetime, DIC_13C_ugL_L1, col = trt))+
     geom_errorbar(aes(ymin = DIC_13C_ugL_L1 - DIC_13C_ugL_sd_L1,
                       ymax = DIC_13C_ugL_L1 + DIC_13C_ugL_sd_L1), lty = 1)+
     xlab('Date') +theme_bw()
-png(filename = 'figures/nsc_expt_13CO2change.png',
-    width = 8, height = 5, res = 300, units = 'in')
+# png(filename = 'figures/nsc_expt_13CO2change.png',
+    # width = 8, height = 5, res = 300, units = 'in')
 ggpubr::ggarrange(p12, p13, common.legend = T)
 dev.off()
 

@@ -62,7 +62,7 @@ dat <- left_join(dat, trts, by = 'Treatment') %>%
 # calculate DIC in the water ####
 ###testing DIC from pCO2-alk
 ###partial pressures of CO2 pCO2 in uatm
-alk <- 1.622933 # meq/L
+alk <- 1.51 # meq/L
 # pCO2 <- 30 * 10^(-6) # mol/L
 temp <- 273+21
 K1 <- exp(290.9097-14554.21/(temp)-45.0575*log(temp))
@@ -106,8 +106,33 @@ dat_sum <- dat %>%
     summarize(across(any_of(c('sample_datetime', 'delCO2', 'DIC_mgL',
                               'DIC_13C_ugL', 'alk_meqL')),
                      .fns = ~mean(., na.rm = T))) %>%
-    select(-replicate) %>%
     ungroup()
+
+# Calculate the change over time for each bottle measured at time T
+bottle_dif <-
+    dat_sum %>% select(-starts_with(c('delCO2', 'alk_meqL'))) %>%
+    mutate(batch = case_when(batch == 1 ~ 'T0',
+                             batch == 2 ~ 'T1'))%>%
+    pivot_wider(names_from = c('batch', 'replicate'),
+                values_from = c('sample_datetime', 'DIC_mgL', 'DIC_13C_ugL')) %>%
+    rename_with(~sub('_NA$', '', .)) %>%
+    mutate(across(starts_with('DIC_mgL_T1'), .fns = ~ . - DIC_mgL_T0),
+           across(starts_with('DIC_13C_ugL_T1'), .fns = ~ . - DIC_13C_ugL_T0),
+           across(starts_with('sample_datetime_T1'), .fns = ~ . - sample_datetime_T0)) %>%
+    select(-ends_with('T0')) %>%
+    pivot_longer(cols = ends_with(c('_A', '_B', '_C', '_D')),
+                 names_to = c('.value', 'rep'),
+                 names_sep = '_T1_') %>%
+    mutate(sample_datetime = as.numeric(sample_datetime),
+           DIC_ugLd = DIC_mgL/sample_datetime*1000,
+           DIC_13C_ugLd = DIC_13C_ugL/sample_datetime) %>%
+    select(-sample_datetime, -DIC_mgL, -DIC_13C_ugL) %>%
+    mutate(site = "ybc")
+
+ggplot(bottle_dif, aes(trt, DIC_13C_ugLd, fill = factor(leachate))) +
+    geom_violin()
+write_csv(bottle_dif, 'data/DIC_change_by_bottle_ybc.csv')
+
 dat_sum <- dat_sum %>%
     group_by(batch, trt, leachate) %>%
     summarize(across(any_of(c('sample_datetime', 'delCO2', 'DIC_mgL',
@@ -130,7 +155,10 @@ p13 <- ggplot(dat_sum, aes(sample_datetime, DIC_13C_ugL_mean, col = trt, lty = f
                       ymax = DIC_13C_ugL_mean + DIC_13C_ugL_sd), lty = 1)+
     xlab('Date') +theme_bw()
 
+png(filename = 'figures/ybc_expt_13CO2overtime.png',
+    width = 8, height = 5, res = 300, units = 'in')
 ggpubr::ggarrange(p12, p13, common.legend = T)
+dev.off()
 
 #removing baseline ####
 
@@ -194,29 +222,51 @@ dd <- dat_sum %>% select(-starts_with(c('delCO2', 'alk_meqL'))) %>%
 mutate(dd, AF = Delta_DIC_13_ugLd/(Delta_DIC_13_ugLd + Delta_DIC_ugLd),
        del = AFtodel(AF))
 
-excess13C <- dd %>% select( -inc_time) %>%
+excess13CDIC <- dd %>% select( -inc_time) %>%
     pivot_wider(id_cols = trt, names_from = 'leachate',
                 values_from = c('Delta_DIC_ugLd', 'Delta_DIC_13_ugLd',
                                 'Delta_DIC_ugLd_sd', 'Delta_DIC_13_ugLd_sd')) %>%
     mutate(excess_13C_DIC = Delta_DIC_13_ugLd_1 - Delta_DIC_13_ugLd_0,
-           excess_13C_sd = Delta_DIC_13_ugLd_sd_1 + Delta_DIC_13_ugLd_sd_0) %>%
-    select(-ends_with(c('_1','_0')))
+           excess_13C_sd = Delta_DIC_13_ugLd_sd_1 + Delta_DIC_13_ugLd_sd_0,
+           excess_DIC = Delta_DIC_ugLd_1 - Delta_DIC_ugLd_0,
+           excess_DIC_sd = Delta_DIC_ugLd_sd_1 + Delta_DIC_ugLd_sd_0) %>%
+    select(-ends_with(c('_1','_0'))) %>%
+    mutate(site = 'ybc', .before = trt)
 
-excess13C$carbon = c('Glucose', 'Glucose', 'No Glucose', 'No Glucose')
-excess13C$carbon <- factor(excess13C$carbon, levels = c('No Glucose','Glucose'))
-excess13C$nuts = c('No Nutrients', 'Nutrients', 'No Nutrients', 'Nutrients')
+excess13CDIC$carbon = c('Glucose', 'Glucose', 'No Glucose', 'No Glucose')
+excess13CDIC$carbon <- factor(excess13CDIC$carbon, levels = c('No Glucose','Glucose'))
+excess13CDIC$nuts = c('No Nutrients', 'Nutrients', 'No Nutrients', 'Nutrients')
+png(filename = 'figures/ybc_expt_13CDIC_pres.png',
+    width = 5, height = 5, res = 300, units = 'in')
+ggplot(excess13CDIC, aes(carbon, excess_13C_DIC, col = nuts,fill = nuts, group = nuts)) +
+    geom_line() + geom_point() +
+    # geom_ribbon(aes(ymin = excess_13C_DIC - excess_13C_sd,
+    #                   ymax = excess_13C_DIC + excess_13C_sd),col = 'transparent', alpha = 0.2,
+    #             outline.type = 'full')+
+    ggtitle('Yellow Bay Creek')+
+    xlab('Glucose Treatment') +theme_bw()+
+    ylab('Excess 13C DIC')+
+    guides(color = guide_legend(title = "Nutrient Treatment"))+
+    guides(fill = FALSE)
+dev.off()
+
+excess13CDIC$carbon = c('Glucose', 'Glucose', 'No Glucose', 'No Glucose')
+excess13CDIC$carbon <- factor(excess13CDIC$carbon, levels = c('No Glucose','Glucose'))
+excess13CDIC$nuts = c('No Nutrients', 'Nutrients', 'No Nutrients', 'Nutrients')
 png(filename = 'figures/ybc_expt_13CDIC.png',
     width = 5, height = 5, res = 300, units = 'in')
-ggplot(excess13C, aes(carbon, excess_13C_DIC, col = nuts, group = nuts)) +
+ggplot(excess13CDIC, aes(carbon, excess_13C_DIC, col = nuts, group = nuts)) +
     geom_line() + geom_point() +
     geom_errorbar(aes(ymin = excess_13C_DIC - excess_13C_sd,
                       ymax = excess_13C_DIC + excess_13C_sd))+
     ggtitle('Yellow Bay Creek')
 dev.off()
 
+write_csv(excess13CDIC, 'data/excessDIC_ybc.csv')
+
 png(filename = 'figures/ybc_expt_13CDIC_pres.png',
     width = 5, height = 5, res = 300, units = 'in')
-ggplot(excess13C, aes(carbon, excess_13C_DIC, col = nuts,fill = nuts, group = nuts)) +
+ggplot(excess13CDIC, aes(carbon, excess_13C_DIC, col = nuts,fill = nuts, group = nuts)) +
     geom_line() + geom_point() +
     # geom_ribbon(aes(ymin = excess_13C_DIC - excess_13C_sd,
     #                   ymax = excess_13C_DIC + excess_13C_sd),col = 'transparent', alpha = 0.2,
