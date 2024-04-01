@@ -142,7 +142,9 @@ dat_sum <- dat_sum %>%
     rename(sample_datetime = sample_datetime_mean) %>%
     select(-sample_datetime_sd) %>%
     mutate(across(ends_with('sd'), ~case_when(is.na(.) ~ 0,
-                                              TRUE ~ .)))
+                                              TRUE ~ .))) %>%
+    mutate(site = "fl2")
+write_csv(dat_sum, 'data/DIC_overtime_fl2.csv')
 
 p12 <- ggplot(dat_sum, aes(sample_datetime, DIC_mgL_mean, col = trt, lty = factor(leachate)))+
     geom_point() + geom_line(size = 1) +

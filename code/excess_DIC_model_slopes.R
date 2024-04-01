@@ -81,9 +81,12 @@ dat %>%
 # in the across sites model with continuous nutrients as a covariate
 
 dat_leachate <- filter(dat, leachate == 1, nutrients == 0)
-# dat_leachate <- filter(dat, leachate == 1)
+dat_leachate <- filter(dat, leachate == 1)
 
 mod_excess13C <- lmer(excess_13C_DIC ~ (carbon | site),
+                      data = dat_leachate)
+
+mod_excess13C <- lmer(excess_13C_DIC ~ (carbon*nutrients | site),
                       data = dat_leachate)
 
 ranef(mod_excess13C)
@@ -109,23 +112,66 @@ dd %>% filter(term != '(Intercept)') %>%
     select(-grpvar) %>%
     write_csv('data/model_fits/carbon_effect_on_excess13C.csv')
 
+extract_fit <- function(fit, site_name){
+    data <- filter(dat_leachate, site == site_name)
+    fl_j <- data.frame(summary(fit)$coefficients)
+    colnames(fl_j) <- c('model_estimate', 'est_se', 't_value', 'p_value')
+    fl_j <- mutate(fl_j, effect = rownames(fl_j),
+                   est_sd = est_se * sqrt(nrow(data)),
+                   CI_95 = 1.96 * est_se,
+                   site = site_name)
+    fl_j <- filter(fl_j, effect != '(Intercept)')
+    rownames(fl_j) <- NULL
+
+    return(fl_j)
+
+}
 # compare the results to models on individual sites:
 mod_fl_j <- lm(excess_13C_DIC ~ carbon * nutrients,
-               data = filter(dat_leachate, site == 'Flathead Lake, July'))
-summary(mod_fl_j)
+               data = filter(dat_leachate, site == 'Flathead Lake, July')) #significant
+fl_j <- extract_fit(mod_fl_j, 'Flathead Lake, July')
+
 mod_fl_o <- lm(excess_13C_DIC ~ carbon * nutrients,
                data = filter(dat_leachate, site == 'Flathead Lake, October'))
 summary(mod_fl_o)
+site_fits <- extract_fit(mod_fl_o, 'Flathead Lake, October') %>%
+    bind_rows(fl_j)
 mod_nmc <- lm(excess_13C_DIC ~ carbon * nutrients,
                data = filter(dat_leachate, site == 'Nyack Main Channel'))
-summary(mod_nmc)
+summary(mod_nmc) #significant
+site_fits <- extract_fit(mod_nmc, 'Nyack Main Channel') %>%
+    bind_rows(site_fits)
+
 mod_nsc <- lm(excess_13C_DIC ~ carbon * nutrients,
                data = filter(dat_leachate, site == 'Nyack Side Channel'))
-summary(mod_nsc)
+summary(mod_nsc) #maybe
+site_fits <- extract_fit(mod_nsc, 'Nyack Side Channel') %>%
+    bind_rows(site_fits)
+
 mod_ybc <- lm(excess_13C_DIC ~ carbon * nutrients,
                data = filter(dat_leachate, site == 'Yellow Bay Creek'))
 summary(mod_ybc)
+site_fits <- extract_fit(mod_ybc, 'Yellow Bay Creek') %>%
+    bind_rows(site_fits)
 
+
+png(filename = 'figures/treatment_effects_all_sites.png',
+    width = 8, height = 4, res = 300, units = 'in')
+site_fits %>%
+    mutate(sig = case_when(p_value <= 0.05 ~ 1,
+                           TRUE ~ 0)) %>%
+    # ggplot(aes(y = site, x = model_estimate, col = factor(sig))) +
+    ggplot(aes(y = site, x = model_estimate)) +
+    geom_point() +
+    facet_wrap( ~ effect, scales = "free_x") +
+    geom_errorbarh(aes(xmin = model_estimate - CI_95,
+                       xmax = model_estimate + CI_95), height=0) +
+    geom_vline(xintercept = 0)+
+    ylab('Site')+
+    xlab('Treatment effect') +
+    theme_bw()
+
+dev.off()
 
 # model the rate of change in DIC across treatments
 dat %>%

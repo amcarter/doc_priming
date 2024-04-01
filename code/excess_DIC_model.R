@@ -164,6 +164,50 @@ dat %>%
     scale_x_discrete(limits = c("No Leachate", "Leachate"))
 
 dev.off()
+
+    # presence
+
+dat_mean_3 <- dat %>%
+    mutate(site = case_when(site == 'fl' ~ 'Flathead Lake, July',
+                            site == 'fl2'~ 'Flathead Lake, October',
+                            site == 'ybc' ~ 'Yellow Bay Creek',
+                            site == 'nyack_mc' ~ 'Nyack Main Channel',
+                            site == 'nyack_sc' ~ 'Nyack Side Channel',
+                            TRUE ~ site)) %>%
+    # filter(carbon == 0) %>%
+    group_by(site, leachate, trt) %>%
+    summarize(mean_DIC = mean(DIC_ugLd)) %>%
+    mutate(carbon = ifelse(grepl("C", trt), "Glucose", "No Glucose")) %>%
+    mutate(leachate = ifelse(grepl(0, leachate), "No Leachate", "Leachate")) %>%
+    mutate(nuts = ifelse(grepl("NP", trt), "Nutrients", "No Nutrients")) %>%
+    ungroup
+
+# png(filename = 'figures/bybottle/excessDIC_bybottle.png',
+#     width = 10, height = 5, res = 300, units = 'in')
+
+dat %>%
+    mutate(site = case_when(site == 'fl' ~ 'Flathead Lake, July',
+                            site == 'fl2'~ 'Flathead Lake, October',
+                            site == 'ybc' ~ 'Yellow Bay Creek',
+                            site == 'nyack_mc' ~ 'Nyack Main Channel',
+                            site == 'nyack_sc' ~ 'Nyack Side Channel',
+                            TRUE ~ site)) %>%
+    # filter(carbon == 0) %>%
+    mutate(carbon = ifelse(grepl("C", trt), "Glucose", "No Glucose")) %>%
+    mutate(leachate = ifelse(grepl(0, leachate), "No Leachate", "Leachate")) %>%
+    mutate(nuts = ifelse(grepl("NP", trt), "Nutrients", "No Nutrients")) %>%
+    ggplot(aes(x = carbon, y = DIC_ugLd, color = factor(nuts))) +
+    geom_point(alpha = 0.5) +
+    geom_line(data = dat_mean_3, aes(y = mean_DIC, group = nuts)) +
+    facet_grid(leachate ~ site, scales = "free_x") +
+    ylab('total DIC (ugL/d)') +
+    xlab("") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    scale_x_discrete(limits = c("No Glucose", "Glucose"))
+
+dev.off()
+    ##
     ##
 
 combined <- dat %>%
@@ -194,7 +238,6 @@ ggplot(excess13CDIC_bybottle, aes(carbon, excess_13C_DIC, col = nuts, group = nu
     ggtitle('Excess 13C DIC')  # Title for the entire plot
 
 dev.off()
-
 
 # model trials below here
 dat <-

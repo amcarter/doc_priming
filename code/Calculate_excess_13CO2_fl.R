@@ -148,7 +148,10 @@ dat_sum <- filter(dat_sum, batch != 2) %>%
     rename(sample_datetime = sample_datetime_mean) %>%
     select(-sample_datetime_sd) %>%
     mutate(across(ends_with('sd'), ~case_when(is.na(.) ~ 0,
-                                              TRUE ~ .)))
+                                              TRUE ~ .))) %>%
+    mutate(site = "fl")
+write_csv(dat_sum, 'data/DIC_overtime_fl.csv')
+
 dat_dif <- dat_sum %>%
     mutate(AF = deltoAF(delCO2_mean)) %>%
     select(-starts_with(c('delCO2', 'alk_meqL'))) %>%

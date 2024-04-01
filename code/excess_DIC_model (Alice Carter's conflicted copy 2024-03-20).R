@@ -1,5 +1,4 @@
 
-
 library(tidyverse)
 library(lme4)
 
@@ -66,6 +65,9 @@ dat %>%
     ylab('excess 13C DIC (ugL/d)') + xlab("") +
     theme_bw()
 
+png(filename = 'figures/12C_nuts_lch_final.png',
+    width = 8, height = 5, res = 300, units = 'in')
+
 dat %>%
     # filter(leachate == 0) %>%
     mutate(nutrients = factor(nutrients),
@@ -76,6 +78,8 @@ dat %>%
     facet_grid(leachate~site) +
     ylab('12C Breakdown (ugL/d)') + xlab("") +
     theme_bw()
+
+dev.off()
 
 
 
